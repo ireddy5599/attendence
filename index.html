@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Attendance</title>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#08090a;
+  --s1:#111214;
+  --s2:#18191c;
+  --s3:#222428;
+  --border:#2c2e33;
+  --accent:#4ade80;
+  --accent2:#86efac;
+  --accentdim:rgba(74,222,128,0.12);
+  --text:#f1f2f4;
+  --muted:#6b7280;
+  --red:#f87171;
+  --yellow:#fbbf24;
+  --font:'Bricolage Grotesque',sans-serif;
+  --mono:'JetBrains Mono',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);min-height:100vh;}
+
+/* ── SETUP SCREEN ── */
+#setupScreen{
+  display:flex;align-items:center;justify-content:center;
+  min-height:100vh;padding:24px;
+}
+.setup-card{
+  background:var(--s1);border:1px solid var(--border);
+  border-radius:24px;padding:48px 40px;max-width:480px;width:100%;
+  box-shadow:0 32px 80px rgba(0,0,0,0.6);
+}
+.setup-card .icon{font-size:48px;margin-bottom:20px;}
+.setup-card h1{font-size:28px;font-weight:800;margin-bottom:8px;letter-spacing:-0.03em;}
+.setup-card p{color:var(--muted);font-size:14px;line-height:1.7;margin-bottom:32px;}
+.setup-card p a{color:var(--accent);text-decoration:none;}
+.setup-card p a:hover{text-decoration:underline;}
+.field-label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:8px;}
+.token-input{
+  width:100%;background:var(--bg);border:1px solid var(--border);
+  border-radius:12px;padding:14px 16px;color:var(--text);
+  font-family:var(--mono);font-size:13px;outline:none;
+  transition:border-color 0.2s;margin-bottom:16px;
+}
+.token-input:focus{border-color:var(--accent);}
+.token-input::placeholder{color:var(--muted);}
+.setup-btn{
+  width:100%;background:var(--accent);color:#0a0a0a;
+  border:none;border-radius:12px;padding:15px;
+  font-family:var(--font);font-size:15px;font-weight:700;
+  cursor:pointer;transition:opacity 0.2s,transform 0.15s;
+}
+.setup-btn:hover{opacity:0.9;transform:translateY(-1px);}
+.setup-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none;}
+.setup-error{color:var(--red);font-size:13px;font-family:var(--mono);margin-top:12px;display:none;}
+.setup-steps{margin-top:28px;border-top:1px solid var(--border);padding-top:24px;}
+.setup-steps ol{padding-left:18px;color:var(--muted);font-size:13px;line-height:2.2;}
+.setup-steps ol li span{color:var(--accent2);}
+.setup-steps a{color:var(--accent2);text-decoration:none;}
+
+/* ── MAIN APP ── */
+#app{display:none;max-width:980px;margin:0 auto;padding:32px 20px 80px;}
+
+.app-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:32px;flex-wrap:wrap;gap:16px;}
+.app-title{font-size:12px;font-family:var(--mono);color:var(--muted);letter-spacing:0.08em;}
+.app-title strong{display:block;font-family:var(--font);font-size:34px;font-weight:800;color:var(--text);letter-spacing:-0.03em;margin-top:2px;}
+.header-right{display:flex;align-items:center;gap:10px;}
+.sync-status{
+  font-size:11px;font-family:var(--mono);color:var(--muted);
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:100px;padding:6px 14px;display:flex;align-items:center;gap:6px;
+}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);}
+.sync-dot.syncing{background:var(--yellow);animation:pulse 1s infinite;}
+.sync-dot.error{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.logout-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:10px;padding:7px 14px;font-family:var(--mono);font-size:11px;
+  cursor:pointer;transition:border-color 0.2s,color 0.2s;letter-spacing:0.05em;
+}
+.logout-btn:hover{border-color:var(--red);color:var(--red);}
+
+/* Stats */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:24px;}
+.stat{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px 18px;}
+.stat .val{font-size:30px;font-weight:800;color:var(--accent);letter-spacing:-0.04em;line-height:1;margin-bottom:4px;}
+.stat .lbl{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.08em;}
+
+/* Grid */
+.main-grid{display:grid;grid-template-columns:1fr 310px;gap:16px;align-items:start;}
+@media(max-width:720px){
+  .main-grid{grid-template-columns:1fr;}
+  .stats{grid-template-columns:repeat(2,1fr);}
+}
+
+/* Calendar */
+.calendar-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:24px;}
+.cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;}
+.cal-title{font-size:16px;font-weight:700;letter-spacing:-0.02em;}
+.cal-nav{display:flex;gap:6px;}
+.cal-nav button{
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  border-radius:8px;width:32px;height:32px;cursor:pointer;font-size:16px;
+  display:flex;align-items:center;justify-content:center;
+  transition:border-color 0.2s,background 0.2s;
+}
+.cal-nav button:hover{border-color:var(--accent);background:var(--accentdim);}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-bottom:6px;}
+.cal-days-header span{text-align:center;font-size:10px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;padding:4px 0;}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;}
+.cal-day{
+  aspect-ratio:1;border-radius:10px;display:flex;align-items:center;justify-content:center;
+  font-size:13px;font-weight:500;cursor:pointer;position:relative;
+  background:transparent;border:1px solid transparent;
+  transition:background 0.15s,border-color 0.15s,color 0.15s;
+  user-select:none;
+}
+.cal-day:hover:not(.empty):not(.future){background:var(--s3);border-color:var(--border);}
+.cal-day.empty{cursor:default;}
+.cal-day.future{cursor:default;color:var(--muted);opacity:0.35;}
+.cal-day.present{background:var(--accentdim);color:var(--accent);border-color:rgba(74,222,128,0.3);font-weight:700;}
+.cal-day.present::after{
+  content:'';position:absolute;bottom:4px;left:50%;transform:translateX(-50%);
+  width:4px;height:4px;border-radius:50%;background:var(--accent);
+}
+.cal-day.today-cell{border-color:var(--accent)!important;}
+.cal-day.today-cell:not(.present){color:var(--accent);}
+.cal-day.weekend:not(.present){color:var(--muted);}
+.cal-day.selected-day{box-shadow:0 0 0 2px var(--yellow);}
+
+/* Sidebar */
+.sidebar{display:flex;flex-direction:column;gap:14px;}
+
+.mark-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:24px;}
+.selected-date-label{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;margin-bottom:6px;}
+.selected-date-val{font-size:22px;font-weight:700;letter-spacing:-0.02em;margin-bottom:3px;}
+.selected-weekday{font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:20px;}
+.mark-btn{
+  width:100%;background:var(--accent);color:#050505;
+  border:none;border-radius:12px;padding:14px;
+  font-family:var(--font);font-size:14px;font-weight:700;
+  cursor:pointer;transition:opacity 0.2s,transform 0.15s,background 0.2s,color 0.2s;
+}
+.mark-btn:hover:not(:disabled){opacity:0.88;transform:translateY(-1px);}
+.mark-btn:disabled{background:var(--s3);color:var(--muted);cursor:not-allowed;transform:none;}
+.mark-btn.remove-mode{background:rgba(248,113,113,0.1);color:var(--red);border:1px solid rgba(248,113,113,0.25);}
+.mark-btn.remove-mode:hover:not(:disabled){background:rgba(248,113,113,0.18);}
+.mark-info-text{margin-top:10px;font-size:12px;font-family:var(--mono);color:var(--muted);text-align:center;min-height:16px;}
+
+/* History */
+.history-card{background:var(--s1);border:1px solid var(--border);border-radius:20px;overflow:hidden;}
+.history-header{padding:16px 18px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.history-title{font-size:11px;font-family:var(--mono);color:var(--muted);text-transform:uppercase;letter-spacing:0.1em;}
+.export-btn{
+  background:none;border:1px solid var(--border);color:var(--muted);
+  border-radius:8px;padding:5px 12px;font-family:var(--mono);font-size:10px;
+  cursor:pointer;transition:border-color 0.2s,color 0.2s;letter-spacing:0.05em;
+}
+.export-btn:hover{border-color:var(--accent);color:var(--accent);}
+.history-list{max-height:340px;overflow-y:auto;}
+.history-list::-webkit-scrollbar{width:3px;}
+.history-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+.h-entry{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:11px 18px;border-bottom:1px solid var(--border);
+  transition:background 0.15s;
+}
+.h-entry:last-child{border-bottom:none;}
+.h-entry:hover{background:var(--s2);}
+.h-left{display:flex;align-items:center;gap:10px;}
+.h-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);flex-shrink:0;}
+.h-date{font-size:13px;font-weight:600;}
+.h-day{font-size:10px;font-family:var(--mono);color:var(--muted);}
+.h-time{font-size:11px;font-family:var(--mono);color:var(--muted);}
+.h-empty{padding:32px 18px;text-align:center;font-size:12px;font-family:var(--mono);color:var(--muted);}
+
+/* Toast */
+.toast{
+  position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:100px;padding:12px 24px;
+  font-size:13px;font-weight:600;
+  display:flex;align-items:center;gap:8px;
+  opacity:0;transition:opacity 0.3s,transform 0.3s;
+  pointer-events:none;z-index:999;white-space:nowrap;
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:rgba(74,222,128,0.4);color:var(--accent);}
+.toast.err{border-color:rgba(248,113,113,0.4);color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- SETUP SCREEN -->
+<div id="setupScreen">
+  <div class="setup-card">
+    <div class="icon">🗓️</div>
+    <h1>Attendance Setup</h1>
+    <p>
+      Your attendance is stored as a JSON file in a private <strong>GitHub Gist</strong> — no server, no database needed. Data lives in your GitHub account.<br><br>
+      You need a GitHub token with only the <strong>gist</strong> scope. It's saved only in your browser, never sent anywhere else.
+    </p>
+    <div class="field-label">GitHub Personal Access Token</div>
+    <input class="token-input" id="tokenInput" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"/>
+    <button class="setup-btn" id="setupBtn" onclick="setupApp()">Connect & Start →</button>
+    <div class="setup-error" id="setupError"></div>
+    <div class="setup-steps">
+      <ol>
+        <li>Go to <a href="https://github.com/settings/tokens/new?scopes=gist&description=attendance-app" target="_blank">github.com/settings/tokens</a></li>
+        <li>Click <span>Generate new token (classic)</span></li>
+        <li>Set note, check only the <span>gist</span> scope</li>
+        <li>Generate → copy → paste above</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+  <div class="app-header">
+    <div class="app-title">
+      // attendance tracker
+      <strong>Check<span style="color:var(--accent)">In</span></strong>
+    </div>
+    <div class="header-right">
+      <div class="sync-status">
+        <div class="sync-dot" id="syncDot"></div>
+        <span id="syncText">synced</span>
+      </div>
+      <button class="logout-btn" onclick="logout()">disconnect</button>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="val" id="sTotalDays">0</div><div class="lbl">Total Days</div></div>
+    <div class="stat"><div class="val" id="sThisMonth">0</div><div class="lbl">This Month</div></div>
+    <div class="stat"><div class="val" id="sStreak">0</div><div class="lbl">Streak 🔥</div></div>
+    <div class="stat"><div class="val" id="sPercent">0%</div><div class="lbl">Month %</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div class="calendar-card">
+      <div class="cal-header">
+        <div class="cal-title" id="calTitle"></div>
+        <div class="cal-nav">
+          <button onclick="changeMonth(-1)">‹</button>
+          <button onclick="changeMonth(1)">›</button>
+        </div>
+      </div>
+      <div class="cal-days-header">
+        <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+    </div>
+
+    <div class="sidebar">
+      <div class="mark-card">
+        <div class="selected-date-label">Selected Date</div>
+        <div class="selected-date-val" id="selDateVal">—</div>
+        <div class="selected-weekday" id="selWeekday"></div>
+        <button class="mark-btn" id="markBtn" onclick="toggleAttendance()" disabled>Select a date</button>
+        <div class="mark-info-text" id="markInfo"></div>
+      </div>
+
+      <div class="history-card">
+        <div class="history-header">
+          <div class="history-title">Recent History</div>
+          <button class="export-btn" onclick="exportCSV()">↓ CSV</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let TOKEN = '', GIST_ID = '', records = {};
+let calYear, calMonth, selectedDate = '';
+const GIST_FILE = 'attendance-data.json';
+
+const $ = id => document.getElementById(id);
+const pad = n => String(n).padStart(2,'0');
+const todayStr = () => { const d=new Date(); return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`; };
+const fmtShort = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+const fmtWeekday = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN',{weekday:'long'});
+const fmtHistDate = s => new Date(s+'T00:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short'});
+
+function showToast(msg, type='success'){
+  const t=$('toast'); t.textContent=msg; t.className=`toast show ${type}`;
+  setTimeout(()=>t.className='toast',2800);
+}
+
+function setSyncStatus(state){
+  $('syncDot').className='sync-dot'+(state==='syncing'?' syncing':state==='error'?' error':'');
+  $('syncText').textContent=state==='syncing'?'syncing…':state==='error'?'sync failed':'synced';
+}
+
+// ── GitHub Gist API ──
+async function gistFetch(url, method='GET', body=null){
+  const opts={method,headers:{'Authorization':`token ${TOKEN}`,'Accept':'application/vnd.github.v3+json'}};
+  if(body){opts.headers['Content-Type']='application/json';opts.body=JSON.stringify(body);}
+  const r=await fetch(url,opts);
+  if(!r.ok) throw new Error(`GitHub API error: ${r.status}`);
+  return r.json();
+}
+
+async function loadGist(){
+  const data=await gistFetch(`https://api.github.com/gists/${GIST_ID}`);
+  return JSON.parse(data.files[GIST_FILE]?.content||'{}');
+}
+
+async function saveGist(){
+  await gistFetch(`https://api.github.com/gists/${GIST_ID}`,'PATCH',
+    {files:{[GIST_FILE]:{content:JSON.stringify(records,null,2)}}});
+}
+
+async function findOrCreateGist(){
+  if(GIST_ID){
+    try{ await gistFetch(`https://api.github.com/gists/${GIST_ID}`); return; }
+    catch(e){ GIST_ID=''; }
+  }
+  const gists=await gistFetch('https://api.github.com/gists?per_page=100');
+  const found=gists.find(g=>g.files[GIST_FILE]);
+  if(found){ GIST_ID=found.id; }
+  else {
+    const created=await gistFetch('https://api.github.com/gists','POST',{
+      description:'Attendance Tracker Data',public:false,
+      files:{[GIST_FILE]:{content:JSON.stringify({},null,2)}}
+    });
+    GIST_ID=created.id;
+  }
+  localStorage.setItem('att_gist_id',GIST_ID);
+}
+
+// ── Setup ──
+async function setupApp(){
+  const btn=$('setupBtn'), err=$('setupError');
+  TOKEN=$('tokenInput').value.trim();
+  if(!TOKEN){err.textContent='Please enter your token.';err.style.display='block';return;}
+  btn.disabled=true; btn.textContent='Connecting…'; err.style.display='none';
+  try{
+    await gistFetch('https://api.github.com/user');
+    GIST_ID=localStorage.getItem('att_gist_id')||'';
+    await findOrCreateGist();
+    records=await loadGist();
+    localStorage.setItem('att_token',TOKEN);
+    showMainApp();
+  }catch(e){
+    err.textContent=e.message.includes('401')?'Invalid token. Please check and try again.':e.message;
+    err.style.display='block';
+    btn.disabled=false; btn.textContent='Connect & Start →';
+  }
+}
+
+function logout(){
+  if(!confirm('Disconnect? Your data stays safe in GitHub Gist.')) return;
+  localStorage.removeItem('att_token'); localStorage.removeItem('att_gist_id');
+  location.reload();
+}
+
+function showMainApp(){
+  $('setupScreen').style.display='none'; $('app').style.display='block';
+  const now=new Date(); calYear=now.getFullYear(); calMonth=now.getMonth();
+  selectedDate=todayStr();
+  render();
+}
+
+// ── Render ──
+function render(){ renderStats(); renderCalendar(); renderSidebar(); renderHistory(); }
+
+function changeMonth(dir){
+  calMonth+=dir;
+  if(calMonth<0){calMonth=11;calYear--;} if(calMonth>11){calMonth=0;calYear++;}
+  renderCalendar();
+}
+
+function renderCalendar(){
+  const today=todayStr();
+  const months=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  $('calTitle').textContent=`${months[calMonth]} ${calYear}`;
+  const grid=$('calGrid'); grid.innerHTML='';
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const daysInMonth=new Date(calYear,calMonth+1,0).getDate();
+  for(let i=0;i<firstDay;i++){const e=document.createElement('div');e.className='cal-day empty';grid.appendChild(e);}
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=`${calYear}-${pad(calMonth+1)}-${pad(d)}`;
+    const el=document.createElement('div');
+    const dow=new Date(ds+'T00:00:00').getDay();
+    const cls=['cal-day'];
+    if(dow===0||dow===6) cls.push('weekend');
+    if(ds>today) cls.push('future');
+    if(records[ds]) cls.push('present');
+    if(ds===today) cls.push('today-cell');
+    if(ds===selectedDate) cls.push('selected-day');
+    el.className=cls.join(' ');
+    el.textContent=d;
+    if(ds<=today) el.onclick=()=>selectDate(ds);
+    grid.appendChild(el);
+  }
+}
+
+function selectDate(ds){
+  selectedDate=ds;
+  renderCalendar(); renderSidebar();
+}
+
+function renderSidebar(){
+  if(!selectedDate){ $('selDateVal').textContent='—'; $('selWeekday').textContent=''; return; }
+  $('selDateVal').textContent=fmtShort(selectedDate);
+  $('selWeekday').textContent=fmtWeekday(selectedDate);
+  const btn=$('markBtn'), info=$('markInfo');
+  btn.disabled=false;
+  if(records[selectedDate]){
+    btn.textContent='✕  Remove Attendance';
+    btn.className='mark-btn remove-mode';
+    info.textContent=`Checked in at ${records[selectedDate].time}`;
+  } else {
+    btn.textContent=selectedDate===todayStr()?'✓  Mark Present Today':'✓  Mark Present';
+    btn.className='mark-btn';
+    info.textContent='';
+  }
+}
+
+async function toggleAttendance(){
+  if(!selectedDate) return;
+  const btn=$('markBtn'); btn.disabled=true;
+  setSyncStatus('syncing');
+  try{
+    if(records[selectedDate]){ delete records[selectedDate]; }
+    else {
+      const now=new Date();
+      records[selectedDate]={time:now.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true})};
+    }
+    await saveGist();
+    setSyncStatus('synced');
+    showToast(records[selectedDate]?'✓ Attendance marked!':'Attendance removed');
+    render();
+  }catch(e){
+    setSyncStatus('error');
+    showToast('Sync failed — check your connection','err');
+    btn.disabled=false;
+  }
+}
+
+function renderStats(){
+  const today=todayStr(), pfx=today.slice(0,7);
+  const all=Object.keys(records).sort();
+  $('sTotalDays').textContent=all.length;
+  const thisM=all.filter(d=>d.startsWith(pfx));
+  $('sThisMonth').textContent=thisM.length;
+  const now=new Date(); let wdays=0;
+  for(let d=1;d<=now.getDate();d++){const dd=new Date(now.getFullYear(),now.getMonth(),d);if(dd.getDay()!==0&&dd.getDay()!==6)wdays++;}
+  $('sPercent').textContent=wdays>0?Math.round(thisM.length/wdays*100)+'%':'0%';
+  let streak=0,check=today;
+  while(records[check]){streak++;const d=new Date(check);d.setDate(d.getDate()-1);check=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}
+  $('sStreak').textContent=streak;
+}
+
+function renderHistory(){
+  const list=$('historyList');
+  const sorted=Object.keys(records).sort((a,b)=>b.localeCompare(a)).slice(0,40);
+  if(!sorted.length){list.innerHTML='<div class="h-empty">No records yet.<br>Click a date to mark attendance.</div>';return;}
+  list.innerHTML=sorted.map(d=>`
+    <div class="h-entry">
+      <div class="h-left">
+        <div class="h-dot"></div>
+        <div><div class="h-date">${fmtHistDate(d)}</div><div class="h-day">${fmtWeekday(d)}</div></div>
+      </div>
+      <div class="h-time">${records[d].time||'—'}</div>
+    </div>`).join('');
+}
+
+function exportCSV(){
+  const rows=[['Date','Day','Check-in Time']];
+  Object.keys(records).sort().forEach(d=>rows.push([d,fmtWeekday(d),records[d].time||'N/A']));
+  const a=document.createElement('a');
+  a.href='data:text/csv;charset=utf-8,'+encodeURIComponent(rows.map(r=>r.join(',')).join('\n'));
+  a.download='attendance.csv'; a.click();
+}
+
+// ── Boot ──
+(async()=>{
+  TOKEN=localStorage.getItem('att_token')||'';
+  GIST_ID=localStorage.getItem('att_gist_id')||'';
+  if(TOKEN){
+    try{
+      await gistFetch('https://api.github.com/user');
+      await findOrCreateGist();
+      records=await loadGist();
+      showMainApp();
+    }catch(e){ localStorage.removeItem('att_token'); localStorage.removeItem('att_gist_id'); }
+  }
+})();
+</script>
+</body>
+</html>
